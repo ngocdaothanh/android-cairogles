@@ -26,76 +26,78 @@ cairo_surface_t* gWindowSurface;
 
 static void drawFrame()
 {
+  static long tick = 0;
+  tick++;
+
   cairo_t* cr = cairo_create(gWindowSurface);
 
-  double xc = 128.0;
-  double yc = 128.0;
-  double radius = 100.0;
-  double angle1 = 45.0  * (M_PI/180.0);  /* angles are specified */
-  double angle2 = 180.0 * (M_PI/180.0);  /* in radians           */
+  /* Normalize our canvas size to make our lives easier */
+  int w = cairo_gl_surface_get_width(gWindowSurface);
+  int h = cairo_gl_surface_get_height(gWindowSurface);
+  cairo_scale(cr, w, h);
 
-  cairo_set_line_width (cr, 10.0);
-  cairo_arc (cr, xc, yc, radius, angle1, angle2);
+  /* Draw the big X */
+  double position = (tick%30)*(1.0/30);
+  cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.7);
+  cairo_move_to (cr, 0.1, position);
+  cairo_line_to (cr, 0.9, 1.0-position);
+  cairo_move_to (cr, 0.9, position);
+  cairo_line_to (cr, 0.1, 1.0-position);
+  cairo_set_line_width (cr, 0.1);
+  cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
   cairo_stroke (cr);
 
-  /* draw helping lines */
-  cairo_set_source_rgba (cr, 1, 0.2, 0.2, 0.6);
-  cairo_set_line_width (cr, 6.0);
-
-  cairo_arc (cr, xc, yc, 10.0, 0, 2*M_PI);
+  /* Draw three color squares */
+  cairo_rectangle (cr, 0, 0,0.5, 0.5);
+  cairo_set_source_rgba (cr, 1, 0, 0, 0.50);
   cairo_fill (cr);
 
-  cairo_arc (cr, xc, yc, radius, angle1, angle1);
-  cairo_line_to (cr, xc, yc);
-  cairo_arc (cr, xc, yc, radius, angle2, angle2);
-  cairo_line_to (cr, xc, yc);
-  cairo_stroke (cr);
+  cairo_rectangle (cr, 0, 0.5, 0.5, 0.5);
+  cairo_set_source_rgba (cr, 0, 1, 0, 0.50);
+  cairo_fill (cr);
 
-  cairo_destroy(cr);
+  cairo_rectangle (cr, 0.5, 0, 0.5, 0.5);
+  cairo_set_source_rgba (cr, 0, 0, 1, 0.50);
+  cairo_fill (cr);
+
+  /* Draw a more complicated path */
+  cairo_set_line_width (cr, 0.04);
+  cairo_scale(cr, 0.5, 0.5);
+  cairo_translate(cr, 0.5, 1.0);
+  cairo_set_source_rgba (cr, 1.0, 0.2, 0.0, 0.5);
+  cairo_move_to (cr, 0.25, 0.25);
+  cairo_line_to (cr, 0.5, 0.375);
+  cairo_rel_line_to (cr, 0.25, -0.125);
+  cairo_arc (cr, 0.5, 0.5, 0.25 * sqrt(2), -0.25 * M_PI, 0.25 * M_PI);
+  cairo_rel_curve_to (cr, -0.25, -0.125, -0.25, 0.125, -0.5, 0);
+  cairo_close_path (cr);
+  cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+  cairo_stroke (cr);
 
   cairo_surface_flush(gWindowSurface);
   cairo_gl_surface_swapbuffers(gWindowSurface);
-
-  //cairo_surface_flush(gWindowSurface);
   //eglSwapBuffers(gEglDisplay, gEglSurface);
 }
 
 // Run on the game thread
 static void* gameLoop(void* arg) {
   ANativeWindow* window = gApp->window;
-  ANativeWindow_setBuffersGeometry(window, 0, 0, WINDOW_FORMAT_RGBA_8888);
 
-  int stageWidth  = ANativeWindow_getWidth(window);
-  int stageHeight = ANativeWindow_getHeight(window);
-  LOGI("stage: %d x %d", stageWidth, stageHeight);
+  int windowWidth  = ANativeWindow_getWidth(window);
+  int windowHeight = ANativeWindow_getHeight(window);
+  LOGI("Window: %d x %d", windowWidth, windowHeight);
 
-  //---
-
-  /*
   const EGLint configAttribs[] = {
-    EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
-    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+    EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,      // window surface instead of pixmap or pbuffer surface
+    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,  // configure for opengl es 2
+    EGL_STENCIL_SIZE,    8,
     EGL_RED_SIZE,        8,
     EGL_GREEN_SIZE,      8,
     EGL_BLUE_SIZE,       8,
     EGL_ALPHA_SIZE,      8,
-    EGL_SAMPLES,         8,
-    EGL_SAMPLE_BUFFERS,  1,
+    EGL_SAMPLES,         4, // 4x msaa
+    EGL_SAMPLE_BUFFERS,  1, // must be 1
     EGL_NONE
-  };
-  */
-
-  const EGLint configAttribs[] = {
-      EGL_SURFACE_TYPE, EGL_WINDOW_BIT, // window surface instead of pixmap or pbuffer surface
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,  // configure for opengl es 2
-      EGL_STENCIL_SIZE, 8, // minimal stencil size
-      EGL_RED_SIZE, 8,
-      EGL_GREEN_SIZE, 8,
-      EGL_BLUE_SIZE, 8,
-      EGL_ALPHA_SIZE, 8,
-      EGL_SAMPLES, 4, // 4x msaa
-      EGL_SAMPLE_BUFFERS, 1, // must be 1
-      EGL_NONE
   };
 
   const EGLint contextAttribs[] = {
@@ -113,7 +115,6 @@ static void* gameLoop(void* arg) {
 
   EGLConfig config;
   EGLint numConfigs;
-  LOGI("eglChooseConfig");
   if (!eglChooseConfig(gEglDisplay, configAttribs, &config, 1, &numConfigs)) {
     LOGI("Cannot choose config");
     exit(-1);
@@ -122,16 +123,13 @@ static void* gameLoop(void* arg) {
     LOGI("Did not get exactly one config = %d\n", numConfigs);
     exit(-1);
   }
-  LOGI("numConfigs: %d", numConfigs);
 
   EGLint format;
   eglGetConfigAttrib(gEglDisplay, config, EGL_NATIVE_VISUAL_ID, &format);
   ANativeWindow_setBuffersGeometry(window, 0, 0, format);
 
-  LOGI("eglCreateWindowSurface");
   gEglSurface = eglCreateWindowSurface(gEglDisplay, config, window, surfaceAttribs);
-  //JSG::eglSurface = eglCreateWindowSurface(JSG::eglDisplay, config, window, NULL);
-  LOGI("eglCreateContext");
+  //gEglSurface = eglCreateWindowSurface(gEglDisplay, config, window, NULL);
   gEglContext = eglCreateContext(gEglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
 
   if (!eglMakeCurrent(gEglDisplay, gEglSurface, gEglSurface, gEglContext)) {
@@ -139,23 +137,21 @@ static void* gameLoop(void* arg) {
     exit(-1);
   }
 
-  glViewport(0, 0, stageWidth, stageHeight);
-
-  LOGI("cairo_egl_device_create");
   putenv("CAIRO_GL_COMPOSITOR=msaa");
   gCairoDevice   = cairo_egl_device_create(gEglDisplay, gEglContext);
-  LOGI("cairo_gl_surface_create_for_egl");
-  gWindowSurface = cairo_gl_surface_create_for_egl(gCairoDevice, gEglSurface, stageWidth, stageHeight);
-  LOGI("cairo_gl_device_set_thread_aware");
+  gWindowSurface = cairo_gl_surface_create_for_egl(gCairoDevice, gEglSurface, windowWidth, windowHeight);
   cairo_gl_device_set_thread_aware(gCairoDevice, false);
 
+  int surfaceWidth  = cairo_gl_surface_get_width(gWindowSurface);
+  int surfaceHeight = cairo_gl_surface_get_height(gWindowSurface);
+  LOGI("Surface: %d x %d", surfaceWidth, surfaceHeight);
+
   if (!eglMakeCurrent(gEglDisplay, gEglSurface, gEglSurface, gEglContext)) {
-      LOGI("Unable to eglMakeCurrent");
-      exit(-1);
-    }
+    LOGI("Unable to eglMakeCurrent");
+    exit(-1);
+  }
 
-  glViewport(0, 0, stageWidth, stageHeight);
-
+  glViewport(0, 0, windowWidth, windowHeight);
   while (1) {
     if (gApp->window != NULL && gAnimating) {
       drawFrame();
@@ -179,6 +175,8 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
     case APP_CMD_INIT_WINDOW:
       // The window is being shown, get it ready.
       if (app->window != NULL) {
+        //gameLoop(NULL);
+
         pthread_t t;
         pthread_create(&t, NULL, &gameLoop, NULL);
       }
