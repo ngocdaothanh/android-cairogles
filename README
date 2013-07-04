@@ -2,3 +2,16 @@ This project is like https://github.com/anoek/android-cairo,
 but it uses OpenGL ES 2 backend (faster) instead of image backend.
 
 https://github.com/SRA-SiliconValley/cairogles branch "release" is used.
+
+Obtaining the source code
+-------------------------
+
+git clone --recursive https://github.com/ngocdaothanh/android-cairogles.git
+
+Compiling & Run
+---------------
+
+Install Android NDK, then build the native part:
+path/to/android-ndk/ndk-build
+
+Import this Android project to your favorite IDE, then run as a normal app.
