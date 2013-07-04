@@ -1,3 +1,6 @@
 [submodule "jni/cairogles"]
 	path = jni/cairogles
 	url = git@github.com:SRA-SiliconValley/cairogles.git
+[submodule "jni/pixman"]
+	path = jni/pixman
+	url = git://git.cairographics.org/git/pixman.git
