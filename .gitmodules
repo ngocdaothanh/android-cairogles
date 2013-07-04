@@ -1,0 +1,3 @@
+[submodule "jni/cairogles"]
+	path = jni/cairogles
+	url = git@github.com:SRA-SiliconValley/cairogles.git
